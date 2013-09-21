@@ -15,7 +15,7 @@ function reactor:Run()
     end
     local write = {}
     for Socket, V in pairs(self._write_sockets) do
-        read[#read+1] = Socket
+        write[#write+1] = Socket
     end
 
     local r, w, e = socket.select(read, write, self._quantum)
