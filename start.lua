@@ -22,7 +22,7 @@ end)
 
 reactor:Initialize()
 bot:Initialize(irc, ',')
-
+plugin.AddRuntimeCommands()
 --[[bot:AddCommand('at', 0, function(Username, Channel)
     local Body, Code, Headers, Status = https.request('https://at.hackerspace.pl/api')
     if Code ~= 200 then
@@ -36,10 +36,6 @@ bot:Initialize(irc, ',')
     Channel:Say(table.concat(Users, ','))
 
 end, "Show who's at the Warsaw Hackerspace.")]]--
-
-plugin.RunCode('test', [[plugin.CommandAdd('test', 0, function(Username, Channel)
-    Channel:Say('hello!')
-end, "Test command.", 0)]])
 
 irc:Connect('irc.freenode.net', 6667, 'moonspeak', 'moonspeak', 'moonspeak')
 reactor:Run()

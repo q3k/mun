@@ -54,4 +54,6 @@ function bot:AddCommand(Name, Arguments, Callback, Help, Access)
     self._commands[Name] = Command
 end
 
-
+function bot:RemoveCommand(Name)
+    self._commands[Name] = nil
+end

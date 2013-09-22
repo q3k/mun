@@ -11,10 +11,15 @@ local API = {}
 
 -- All these functions start with the 'plugin_id' argument, which
 -- will be auto-bound to the plugin name when called from a plugin.
-function API.HookAdd(plugin_id, event_name, hook_name, callback)
+function API.AddHook(plugin_id, event_name, hook_name, callback)
     local HookName = plugin_id .. ':' .. hook_name
     local PluginHooks = Plugins[plugin_id].Hooks
-    PluginHooks[#PluginHooks + 1] = HookName
+
+    local HookInfo = {}
+    HookInfo.EventName = event_name
+    HookInfo.HookName = HookName
+
+    PluginHooks[#PluginHooks + 1] = Info
     hook.Add(event_name, HookName, function(...)
         local Args = {...}
         local Success, Message = pcall(callback(unpack(Args)))
@@ -27,7 +32,7 @@ function API.HookAdd(plugin_id, event_name, hook_name, callback)
     end)
 end
 
-function API.CommandAdd(plugin_id, command_name, arity, callback, access, help)
+function API.AddCommand(plugin_id, command_name, arity, callback, access, help)
     bot:AddCommand(command_name, arity, callback, access, help)
     local PluginCommands = Plugins[plugin_id].Commands
     PluginCommands[#PluginCommands + 1] = command_name
@@ -40,6 +45,10 @@ function API.Register(plugin_id, plugin_name, version, url, author)
     Plugin.URL = url
     Plugin.Author = author
 
+end
+
+function API.CurrentTime(plugin_id)
+    return os.time()
 end
 
 function plugin.Create(plugin_id)
@@ -57,6 +66,25 @@ function plugin.Create(plugin_id)
     Plugins[plugin_id].Env = plugin.PrepareEnvironment(plugin_id)
 end
 
+function plugin.Unload(plugin_id)
+    if Plugins[plugin_id] == nil then
+        error("No such plugin.")
+    end
+    local Plugin = Plugins[plugin_id]
+    local HooksRemoved = 0
+    local CommandsRemoved = 0
+    for K, HookInfo in pairs(Plugin.Hooks) do
+        hook.Remove(HookInfo.EventName, HookInfo.HookName)
+        HooksRemoved = HooksRemoved + 1
+    end
+    for K, CommandName in pairs(Plugin.Commands) do
+        bot:RemoveCommand(CommandName)
+        CommandsRemoved = CommandsRemoved + 1
+    end
+    Plugins[plugin_id] = nil
+    return HooksRemoved, CommandsRemoved
+end
+
 function plugin.PrepareEnvironment(plugin_id)
     local function BindPluginID(f)
         return function(...)
@@ -64,7 +92,7 @@ function plugin.PrepareEnvironment(plugin_id)
             return f(plugin_id, unpack(Args))
         end
     end
-    
+
     local Env = {}
     Env.table = require('table')
     Env.string = require('string')
@@ -92,4 +120,39 @@ function plugin.RunCode(plugin_id, code)
     end
     setfenv(Function, Plugins[plugin_id].Env)
     return pcall(Function)
+end
+
+
+function plugin.AddRuntimeCommands()
+    bot:AddCommand('plugin-load', 1, function(Username, Channel, Name)
+        if not Name:match('([a-zA-Z0-9\-_]+)') then
+            Channel:Say("Invalid plugin name!")
+            return
+        end
+        if Plugins[Name] ~= nil then
+            Channel:Say(string.format("Plugin %s already loaded!", Name))
+            return
+        end
+        local Filename = "plugins/" .. Name .. ".lua"
+        local File, Message = io.open(Filename, 'r')
+        if not File then
+            Channel:Say(string.format("Could not open plugin file %s: %s", Filename, Message))
+            return
+        end
+        local Data = File:read('*a')
+        local Success, Message = plugin.RunCode(Name, Data)
+        if not Success then
+            Channel:Say(string.format("Could not run plugin code: " .. Message))
+            return
+        end
+        Channel:Say(string.format("Loaded plugin %s succesfully (%i bytes).", Name, #Data))
+    end, "Load a plugin from the plugins/ directory.", 100)
+    bot:AddCommand('plugin-unload', 1, function(Username, Channel, Name)
+        if Plugins[Name] ~= nil then
+            local Hooks, Commands = plugin.Unload(Name)
+            Channel:Say(string.format("Plugin unloaded (removed %i hooks and %i commands).", Hooks, Commands))
+        else
+            Channel:Say("Plugin wasn't loaded.")
+        end
+    end, "Unload a previously loaded plugin.", 100)
 end
