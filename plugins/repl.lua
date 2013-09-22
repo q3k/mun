@@ -36,6 +36,7 @@ plugin.AddCommand('eval', -1, function(User, Channel, String)
     Env.setfenv = nil
     Env._G = Env
     Env.DBI = nil
+    Env.https = nil
     Env.print = function(...)
         local Args = {...}
         local Output = table.concat(Args, "\t")

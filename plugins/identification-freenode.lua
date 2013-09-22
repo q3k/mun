@@ -19,9 +19,9 @@ end)
 
 plugin.AddHook('irc.ChannelNames', 'ScanChannelUsers', function(Channel)
     for Nick, Member in pairs(Channel.Members) do
-        if not Pending[Username] then
-            IRC:Whois(Username)
-            Pending[Username] = true
+        if not Pending[Nick] then
+            Channel:Whois(Nick)
+            Pending[Nick] = true
         end
     end
 end)

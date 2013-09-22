@@ -38,25 +38,29 @@ function API.AddHook(plugin_id, event_name, hook_name, callback)
 end
 
 function API.Sleep(plugin_id, Delay)
+    plugin.PauseQuota()
     reactor:Sleep(Delay)
+    plugin.ResumeQuota()
 end
 
 
 function API.WaitForEvent(plugin_id, Event)
+    plugin.PauseQuota()
     reactor:WaitForEvent(Event)
+    plugin.ResumeQuota()
 end
 
 function API.Event(plugin_id, Event)
+    plugin.PauseQuota()
     reactor:Event(Event)
+    plugin.ResumeQuota()
 end
 
 
 function API.AddCommand(plugin_id, command_name, arity, callback, access, help)
     bot:AddCommand(command_name, arity, function(...)
-        plugin.Quota(5)
-        local Result = callback(...)        
-        debug.sethook()
-        return Result
+        plugin.StartQuota(5)
+        return callback(...)
     end, access, help)
     local PluginCommands = Plugins[plugin_id].Commands
     PluginCommands[#PluginCommands + 1] = command_name
@@ -79,18 +83,56 @@ function API.ConfigGet(plugin_id, Key)
     return config:Get("plugin-" .. plugin_id, Key)
 end
 
-function plugin.Quota(seconds)
-    local Start = os.time()
-    debug.sethook(function()
-        if debug.gethook() == nil then
-            -- Race condition - somebody already removed us.
-            return
+local Quotas = {}
+-- Start counting a coroutine quota
+function plugin.StartQuota(Seconds)
+    local co = coroutine.running()
+    print("Starting quota for " .. tostring(co))
+    Quotas[co] = {}
+    Quotas[co].End = os.time() + Seconds
+    debug.sethook(plugin.CheckQuota, "", 10)
+end
+
+-- Pause counting a coroutine quota (because we are about to yield)
+function plugin.PauseQuota()
+    local co = coroutine.running()
+    if Quotas[co] == nil then
+        return
+    end
+    print("Pausing quota for " .. tostring(co))
+    local Rest = Quotas[co].End - os.time()
+    Quotas[co].Rest = Rest
+    Quotas[co].End = nil
+end
+
+-- Resume counting a coroutine quota (because we just came back)
+function plugin.ResumeQuota()
+    local co = coroutine.running()
+    if Quotas[co] == nil then
+        return
+    end
+    print("Resuming quota for " .. tostring(co))
+    local End = os.time() + Quotas[co].Rest
+    Quotas[co].End = End
+    Quotas[co].Rest = nil
+end
+
+-- Check to see if current coroutine exceeds quota
+-- (this runs from debug.hook)
+function plugin.CheckQuota()
+    local co = coroutine.running()
+    if co == nil then
+        return 
+    end
+    if Quotas[co] == nil then
+        return 
+    end
+    local End = Quotas[co].End
+    if End ~= nil then
+        if os.time() >= End then
+            error("Time quota exceeded!")
         end
-        if os.time() - Start > seconds then
-            debug.sethook()
-            error("Time quota exceeded.")
-        end
-    end, "", 1)
+    end
 end
 
 function plugin.Create(plugin_id)
@@ -163,6 +205,8 @@ function plugin.PrepareEnvironment(plugin_id)
     Env.string = DeepCopy(require('string'))
     Env.json = DeepCopy(require('json'))
     Env.DBI = DeepCopy(require('DBI'))
+    local https = require('ssl.https')
+    Env.https = DeepCopy(https)
     Env.print = print
     Env.error = error
     Env.tonumber = tonumber
@@ -206,7 +250,7 @@ end
 
 
 function plugin.AddRuntimeCommands()
-    bot:AddCommand('plugin-load', 1, function(Username, Channel, Name)
+    local function PluginLoad(Username, Channel, Name)
         if not Name:match('([a-zA-Z0-9%-_]+)') then
             Channel:Say("Invalid plugin name!")
             return
@@ -228,15 +272,30 @@ function plugin.AddRuntimeCommands()
             return
         end
         Channel:Say(string.format("Loaded plugin %s succesfully (%i bytes).", Name, #Data))
-    end, "Load a plugin from the plugins/ directory.", 100)
-    bot:AddCommand('plugin-unload', 1, function(Username, Channel, Name)
+    end
+    local function PluginUnload(Username, Channel, Name)
         if Plugins[Name] ~= nil then
             local Hooks, Commands = plugin.Unload(Name)
             Channel:Say(string.format("Plugin unloaded (removed %i hooks and %i commands).", Hooks, Commands))
         else
             Channel:Say("Plugin wasn't loaded.")
         end
+    end
+    local function PluginList(Username, Channel)
+        local Loaded = {}
+        for Plugin, V in pairs(Plugins) do
+            Loaded[#Loaded + 1] = Plugin
+        end
+        Channel:Say("Loaded plugins: " .. table.concat(Loaded, ", "))
+    end
+    
+    bot:AddCommand('plugin-load', 1, PluginLoad, "Load a plugin from the plugins/ directory.", 100)
+    bot:AddCommand('plugin-unload', 1, PluginUnload, "Unload a previously loaded plugin.", 100)
+    bot:AddCommand('plugin-reload', 1, function(Username, Channel, Name)
+        PluginUnload(Username, Channel, Name)
+        PluginLoad(Username, Channel, Name)
     end, "Unload a previously loaded plugin.", 100)
+    bot:AddCommand('plugin-list', 0, PluginList, "List loaded plugins.", 10)
 end
 
 function plugin.Discover()

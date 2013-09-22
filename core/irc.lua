@@ -12,7 +12,7 @@ function irc.Channel:Whois(Nickname)
 end
 
 function irc:ReceiveData(Data)
-    --hook.Call('debug', Data)
+    hook.Call('debug', Data)
     local Prefix, Command, Arguments
     if Data:sub(1, 1) == ':' then
         local Pattern = ':([^ ]+) +([^ ]+) *(.*)'
@@ -113,10 +113,6 @@ end
 function irc:_Send(message)
     local Delay = (self._last_sent + self._send_delay) - os.time()
     if Delay > 0 then
-        local Function = debug.gethook()
-        if Function ~= nil then
-            Function()
-        end
         reactor:Sleep(Delay)
     end
     self._last_sent = os.time()
@@ -150,8 +146,9 @@ function irc:Join(channel)
     Channel.Members = {}
     Channel._irc = self
     self._channels[channel] = Channel
-
+    print("Sending...")
     self:_Send('JOIN ' .. channel)
+    print("Sent!")
     self:OnResponse(332, function(Nick, _channel, Topic)
         -- Channel topic
         if _channel ~= channel then
@@ -200,6 +197,7 @@ function irc:Connect(server, port, nickname, username, realname)
         hook.Remove('irc.Notice', 'irc.Connect')
         hook.Add('irc.Mode', 'irc.Connect', function(Target, Mode)
             if Target == self._nickname then
+            print("Got mode")
                 hook.Remove('irc.Mode', 'irc.Connect')
                 hook.Call('irc.Connected')
             end

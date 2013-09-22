@@ -18,6 +18,7 @@ hook.Add('plugin.HookCallFailed', 'repl-debug', function(Name, Message)
 end)
 
 hook.Add('irc.Connected', 'repl-connected', function()
+    print("Joining...")
     irc:Join('#hackerspace-pl-bottest')
 end)
 
