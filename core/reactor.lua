@@ -125,7 +125,7 @@ function reactor:SetTimer(name, tick_at, callback, periodic)
     self._timers[name] = Data
 end
 
-function reactor:RemoteTimer(name)
+function reactor:RemoveTimer(name)
     self._timers[name] = nil
 end
 
