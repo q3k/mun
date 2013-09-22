@@ -2,6 +2,7 @@ require('core.hook')
 require('core.reactor')
 require('core.irc')
 require('core.bot')
+require('core.plugin')
 
 require('socket')
 local https = require('ssl.https')
@@ -22,7 +23,7 @@ end)
 reactor:Initialize()
 bot:Initialize(irc, ',')
 
-bot:AddCommand('at', 0, function(Username, Channel)
+--[[bot:AddCommand('at', 0, function(Username, Channel)
     local Body, Code, Headers, Status = https.request('https://at.hackerspace.pl/api')
     if Code ~= 200 then
         error(string.format("Status code returned: %i", Code))
@@ -34,7 +35,11 @@ bot:AddCommand('at', 0, function(Username, Channel)
     end
     Channel:Say(table.concat(Users, ','))
 
-end, "Show who's at the Warsaw Hackerspace.")
+end, "Show who's at the Warsaw Hackerspace.")]]--
+
+plugin.RunCode('test', [[plugin.CommandAdd('test', 0, function(Username, Channel)
+    Channel:Say('hello!')
+end, "Test command.", 0)]])
 
 irc:Connect('irc.freenode.net', 6667, 'moonspeak', 'moonspeak', 'moonspeak')
 reactor:Run()
