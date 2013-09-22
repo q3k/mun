@@ -6,10 +6,13 @@
 
 require('lfs')
 
-local Plugins = {}
-
 plugin = {}
-local API = {}
+plugin.Plugins = {}
+plugin.API = {}
+
+local Plugins = plugin.Plugins
+local API = plugin.API
+
 
 -- All these functions start with the 'plugin_id' argument, which
 -- will be auto-bound to the plugin name when called from a plugin.
@@ -34,10 +37,26 @@ function API.AddHook(plugin_id, event_name, hook_name, callback)
     end)
 end
 
+function API.Sleep(plugin_id, Delay)
+    reactor:Sleep(Delay)
+end
+
+
+function API.WaitForEvent(plugin_id, Event)
+    reactor:WaitForEvent(Event)
+end
+
+function API.Event(plugin_id, Event)
+    reactor:Event(Event)
+end
+
+
 function API.AddCommand(plugin_id, command_name, arity, callback, access, help)
     bot:AddCommand(command_name, arity, function(...)
         plugin.Quota(5)
-        return callback(...)        
+        local Result = callback(...)        
+        debug.sethook()
+        return Result
     end, access, help)
     local PluginCommands = Plugins[plugin_id].Commands
     PluginCommands[#PluginCommands + 1] = command_name
@@ -63,11 +82,15 @@ end
 function plugin.Quota(seconds)
     local Start = os.time()
     debug.sethook(function()
+        if debug.gethook() == nil then
+            -- Race condition - somebody already removed us.
+            return
+        end
         if os.time() - Start > seconds then
             debug.sethook()
             error("Time quota exceeded.")
         end
-    end, "", 100000)
+    end, "", 1)
 end
 
 function plugin.Create(plugin_id)
@@ -105,6 +128,29 @@ function plugin.Unload(plugin_id)
 end
 
 function plugin.PrepareEnvironment(plugin_id)
+    local function DeepCopy(t)
+        local Copied = {}
+        local Result = {}
+        local function Internal(Out, In)
+            for K, V in pairs(In) do
+                local Type = type(V)
+                if Type == "string" or Type == "function" or Type == "number" then
+                    Out[K] = V
+                elseif Type == "table" then
+                    if Copied[V] ~= nil then
+                        Out[K] = Copied[V]
+                    else
+                        Copied[V] = {}
+                        Internal(Copied[V], V)
+                        Out[K] = Copied[V]
+                    end
+                end
+            end
+            return Out
+        end
+        Internal(Result, t)
+        return Result
+    end
     local function BindPluginID(f)
         return function(...)
             local Args = {...}
@@ -113,15 +159,16 @@ function plugin.PrepareEnvironment(plugin_id)
     end
 
     local Env = {}
-    Env.table = require('table')
-    Env.string = require('string')
-    Env.json = require('json')
-    Env.DBI = require('DBI')
+    Env.table = DeepCopy(require('table'))
+    Env.string = DeepCopy(require('string'))
+    Env.json = DeepCopy(require('json'))
+    Env.DBI = DeepCopy(require('DBI'))
     Env.print = print
     Env.error = error
     Env.tonumber = tonumber
     Env.tostring = tostring
     Env.pcall = pcall
+    Env.type = type
     Env.loadstring = function(s)
         if s:byte(1) == 27 then
             return nil, "Refusing to load bytecode"
@@ -160,7 +207,7 @@ end
 
 function plugin.AddRuntimeCommands()
     bot:AddCommand('plugin-load', 1, function(Username, Channel, Name)
-        if not Name:match('([a-zA-Z0-9\-_]+)') then
+        if not Name:match('([a-zA-Z0-9%-_]+)') then
             Channel:Say("Invalid plugin name!")
             return
         end

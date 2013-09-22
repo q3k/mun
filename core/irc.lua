@@ -7,14 +7,12 @@ function irc.Channel:Say(Message)
     self._irc:Say(self.Name, Message)
 end
 
-function irc:ReceiveData(socket)
-    -- Two seconds look okay for receiving a rest of line
-    socket:settimeout(2)
-    local Data, Error = socket:receive('*l')
-    if Error then
-        error('Could not receive IRC line: ' .. Error)
-    end
-    hook.Call('debug', Data)
+function irc.Channel:Whois(Nickname)
+    self._irc:Whois(Nickname)
+end
+
+function irc:ReceiveData(Data)
+    --hook.Call('debug', Data)
     local Prefix, Command, Arguments
     if Data:sub(1, 1) == ':' then
         local Pattern = ':([^ ]+) +([^ ]+) *(.*)'
@@ -88,6 +86,7 @@ function irc:HandleCommand(Prefix, Command, Arguments)
        end
     elseif Number and (Number >= 300) and (Number < 400) then
         -- IRC server response. some parts of us might be looking for these
+        hook.Call('irc.GetResponse' .. tostring(Number), unpack(Arguments))
         if self._response_hooks[Number] ~= nil then
             for K, Callback in pairs(self._response_hooks[Number]) do
                 if Callback(unpack(Arguments)) ~= false then
@@ -112,7 +111,20 @@ function irc:OnResponse(Response, Callback)
 end
 
 function irc:_Send(message)
+    local Delay = (self._last_sent + self._send_delay) - os.time()
+    if Delay > 0 then
+        local Function = debug.gethook()
+        if Function ~= nil then
+            Function()
+        end
+        reactor:Sleep(Delay)
+    end
+    self._last_sent = os.time()
     self.Socket:send(message..'\r\n')
+end
+
+function irc:Whois(nickname)
+    self:_Send('WHOIS ' .. nickname)
 end
 
 function irc:SetNick(nickname)
@@ -126,7 +138,9 @@ function irc:LoginUser(username, realname)
 end
 
 function irc:Say(target, message)
-    self:_Send('PRIVMSG ' .. target .. ' :' .. message)
+    for Line in message:gmatch("[^\r\n]+") do
+        self:_Send('PRIVMSG ' .. target .. ' :' .. Line)
+    end
 end
 
 function irc:Join(channel)
@@ -157,7 +171,6 @@ function irc:Join(channel)
             return false
         end
         for Member in Members:gmatch("%S+") do
-            print(Member)
             local Flag, Name = Member:match('([~@%&]?)(.+)')
             local Data = {}
             Data.Name = Name
@@ -179,6 +192,8 @@ function irc:Connect(server, port, nickname, username, realname)
 
     self._channels = {}
     self._response_hooks = {}
+    self._last_sent = os.time()
+    self._send_delay = 0.5
 
     -- Connection procedure (callback hell!)
     local FinishedInitialNotices = function()

@@ -1,4 +1,5 @@
 local socket = require('socket')
+local coroutine = require('coroutine')
 
 reactor = {}
 
@@ -8,11 +9,50 @@ function reactor:Initialize(quantum)
     self._quantum = quantum or 0.1
     self._quit = false
 
+    self._co_sleep = {}
+    self._co_event = {}
+    self._coroutines = {}
+
     self._timers = {}
 end
 
 function reactor:Quit()
     self._quit = true
+end
+
+function reactor:Sleep(time)
+    local co = coroutine.running()
+    if co == nil then
+        socket.sleep(time)
+        return
+    end
+    self._co_sleep[co] = os.time() + time
+    coroutine.yield()
+end
+
+function reactor:WaitForEvent(event)
+    local co = coroutine.running()
+    if co == nil then
+        error("Main thread waiting for event... wtf?")
+    end
+    self._co_event[co] = event
+    coroutine.yield()
+end
+
+
+function reactor:Event(event)
+    for Coroutine, Event in pairs(self._co_event) do
+        if Event == event then
+            coroutine.resume(Coroutine)
+        end
+    end
+end
+
+function reactor:Spawn(f, ...)
+    local Args = {...}
+    local co = coroutine.create(function() f(unpack(Args)) end)
+    self._coroutines[#self._coroutines + 1] = co
+    coroutine.resume(co)
 end
 
 function reactor:Run()
@@ -35,25 +75,35 @@ function reactor:Run()
             -- we actually got something on our sockets
             for Socket, Data in pairs(self._read_sockets) do
                 if r[Socket] ~= nil then
+                    Socket:settimeout(2)
+                    local Line, Error = Socket:receive('*l')
+                    if Error then
+                        error('Could not receive line: ' .. Error)
+                    end
                     local Callback = Data[1]
                     local Args = Data[2]
-                    Callback(Socket, unpack(Args))
-                    hook.Call('SocketDataReceived', Socket)
+                    self:Spawn(Callback, Line, unpack(Args))
                 end
             end
             for Socket, Data in pairs(self._write_sockets) do
                 if w[Socket] ~= nil then
                     local Callback = Data[1]
                     local Args = Data[2]
-                    Callback(Socket, unpack(Args))
+                    self:Spawn(Callback, Socket, unpack(Args))
                 end
+            end
+        end
+        -- See, if we should wake up any sleepers
+        for Coroutine, Timeout in pairs(self._co_sleep) do
+            if os.time() > Timeout then
+                self._co_sleep[Coroutine] = nil
+                coroutine.resume(Coroutine)
             end
         end
         hook.Call('ReactorTick')
         local Time = os.time()
         for TimerName, Data in pairs(self._timers) do
             if Time >= Data.NextTick then
-                print("Firing timer " .. TimerName)
                 local Result = Data.Callback()
                 if Data.Period ~= nil and Result ~= false then
                     Data.NextTick = Data.NextTick + Data.Period

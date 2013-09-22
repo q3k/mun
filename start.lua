@@ -29,7 +29,7 @@ local Username = config:Get('irc', 'username')
 local Realname = config:Get('irc', 'realname')
 
 reactor:Initialize()
-bot:Initialize(irc, ',')
+bot:Initialize(irc, '~')
 plugin.AddRuntimeCommands()
 plugin.Discover()
 irc:Connect(Server, Port, Nickname, Username, Realname)

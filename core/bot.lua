@@ -15,6 +15,19 @@ function bot:Initialize(IRC, Prefix)
             Channel:Say("Whoops! Error when executing OnChannelMessage: " .. Error)
         end
     end)
+    self:AddCommand('eval-core', -1, function(Username, Channel, String)
+        local Function, Message = loadstring(String)
+        if not Function then
+            Channel:Say("Parse error: " .. Message)
+            return
+        end
+        local Status, Message = pcall(Function)
+        if not Status then
+            Channel:Say("Error -> " .. Message)
+        else
+            Channel:Say("OK -> " .. tostring(Message))
+        end
+    end, "Runs a Lua command in the bot context.", 100)
 end
 
 function bot:OnChannelMessage(Username, Channel, Message)
@@ -51,7 +64,12 @@ function bot:OnChannelMessage(Username, Channel, Message)
                     CommandData.Callback(Username, Channel, unpack(Arguments))
                     return
                 end
-                local UserAccess = hook.Call("auth.GetLevel", Channel, Username)
+                local Account = hook.Call("auth.GetAccount", irc, Username)
+                if not Account then
+                    Channel:Say("Please identify with NickServ.")
+                    return
+                end
+                local UserAccess = hook.Call("auth.GetLevel", Channel, Account)
                 if not UserAccess then
                     Channel:Say("Could not run command because auth backend is missing.")
                     return
