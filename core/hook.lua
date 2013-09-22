@@ -16,8 +16,8 @@ function hook.Call(event_name, ...)
     for K, Function in pairs(hook.Hooks[event_name]) do
         if type(Function) == 'function' then
             local Return = Function(unpack(Args))
-            if Return == false then
-                return
+            if Return ~= nil then
+                return Return
             end
         end
     end
