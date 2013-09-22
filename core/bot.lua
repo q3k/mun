@@ -20,7 +20,6 @@ end
 function bot:OnChannelMessage(Username, Channel, Message)
     if Message:sub(1,#self._prefix) == self._prefix then
         local String = Message:sub(#self._prefix + 1)
-        print(String)
         local Command
         local Arguments = {}
         for Part in String:gmatch("%S+") do
@@ -35,11 +34,33 @@ function bot:OnChannelMessage(Username, Channel, Message)
             Channel:Say("Unknown command '" .. Command .. "'.")
         else
             local CommandData = self._commands[Command]
-            if #Arguments ~= CommandData.Arguments then
+            if #Arguments ~= CommandData.Arguments and CommandData.Arguments ~= -1 then
                 Channel:Say(string.format("Command '%s' expects '%i' arguments, got '%i'.",
                     Command, CommandData.Arguments, #Arguments))
             else
-                CommandData.Callback(Username, Channel, unpack(Arguments))
+                -- -1 means we want a raw string
+                if CommandData.Arguments == -1 then
+                    if #Arguments < 1 then
+                        Channel:Say("Please provide an argument.")
+                        return
+                    end
+                    Arguments = { table.concat(Arguments, ' ') }
+                end
+                local RequiredAccess = CommandData.Access
+                if RequiredAcess == 0 then
+                    CommandData.Callback(Username, Channel, unpack(Arguments))
+                    return
+                end
+                local UserAccess = hook.Call("auth.GetLevel", Channel, Username)
+                if not UserAccess then
+                    Channel:Say("Could not run command because auth backend is missing.")
+                    return
+                end
+                if UserAccess >= RequiredAccess then
+                    CommandData.Callback(Username, Channel, unpack(Arguments))
+                else
+                    Channel:Say(string.format("Unsufficient access level (%i required).", RequiredAccess))
+                end
             end
         end
     end

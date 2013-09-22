@@ -4,6 +4,8 @@
 -- The goal is to be able to unload a plugin and remove all its' hooks
 -- and commands.
 
+require('lfs')
+
 local Plugins = {}
 
 plugin = {}
@@ -19,10 +21,10 @@ function API.AddHook(plugin_id, event_name, hook_name, callback)
     HookInfo.EventName = event_name
     HookInfo.HookName = HookName
 
-    PluginHooks[#PluginHooks + 1] = Info
+    PluginHooks[#PluginHooks + 1] = HookInfo
     hook.Add(event_name, HookName, function(...)
         local Args = {...}
-        local Success, Message = pcall(callback(unpack(Args)))
+        local Success, Message = pcall(callback, unpack(Args))
         if not Success then
             hook.Call("plugin.HookCallFailed", HookName, Message)
             return nil
@@ -33,7 +35,10 @@ function API.AddHook(plugin_id, event_name, hook_name, callback)
 end
 
 function API.AddCommand(plugin_id, command_name, arity, callback, access, help)
-    bot:AddCommand(command_name, arity, callback, access, help)
+    bot:AddCommand(command_name, arity, function(...)
+        plugin.Quota(5)
+        return callback(...)        
+    end, access, help)
     local PluginCommands = Plugins[plugin_id].Commands
     PluginCommands[#PluginCommands + 1] = command_name
 end
@@ -49,6 +54,20 @@ end
 
 function API.CurrentTime(plugin_id)
     return os.time()
+end
+
+function API.ConfigGet(plugin_id, Key)
+    return config:Get("plugin-" .. plugin_id, Key)
+end
+
+function plugin.Quota(seconds)
+    local Start = os.time()
+    debug.sethook(function()
+        if os.time() - Start > seconds then
+            debug.sethook()
+            error("Time quota exceeded.")
+        end
+    end, "", 100000)
 end
 
 function plugin.Create(plugin_id)
@@ -97,6 +116,22 @@ function plugin.PrepareEnvironment(plugin_id)
     Env.table = require('table')
     Env.string = require('string')
     Env.json = require('json')
+    Env.DBI = require('DBI')
+    Env.print = print
+    Env.error = error
+    Env.tonumber = tonumber
+    Env.tostring = tostring
+    Env.pcall = pcall
+    Env.loadstring = function(s)
+        if s:byte(1) == 27 then
+            return nil, "Refusing to load bytecode"
+        else
+            return loadstring(s)
+        end
+    end
+    Env.setfenv = setfenv
+    Env.pairs = pairs
+    Env._G = Env
 
     Env.plugin = {}
     for K, F in pairs(API) do
@@ -155,4 +190,26 @@ function plugin.AddRuntimeCommands()
             Channel:Say("Plugin wasn't loaded.")
         end
     end, "Unload a previously loaded plugin.", 100)
+end
+
+function plugin.Discover()
+    for Filename in lfs.dir('plugins/') do
+        local FullFilename = 'plugins/' .. Filename
+        local Attributes = lfs.attributes(FullFilename)
+        if Attributes.mode == 'file' and FullFilename:sub(-4) == '.lua' then
+            local PluginName = Filename:sub(1, -5)
+            hook.Call('info', 'Loading plugin ' .. PluginName)
+
+            local File, Message =  io.open(FullFilename)
+            if not File then
+                hook.Call('info', 'Skipping: ' .. Message)
+            else
+                local Data = File:read('*a')
+                local Success, Message = plugin.RunCode(PluginName, Data)
+                if not Success then
+                    error(string.format("Could not load plugin %s: %s.", PluginName, Message))
+                end
+            end
+        end
+    end
 end

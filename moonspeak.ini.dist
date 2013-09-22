@@ -1,0 +1,13 @@
+[irc]
+server = irc.freenode.net
+port = 6667
+nickname = moonspeak
+username = moonspeak
+realname = moonspeak
+
+[plugin-auth-postgres]
+server = 1.1.1.1
+username = user
+database = db
+password = pass
+

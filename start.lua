@@ -1,12 +1,9 @@
 require('core.hook')
+require('core.config')
 require('core.reactor')
 require('core.irc')
 require('core.bot')
 require('core.plugin')
-
-require('socket')
-local https = require('ssl.https')
-require('json')
 
 hook.Add('info', 'repl-info', function(Message)
     print('INFO: ' .. Message)
@@ -16,26 +13,24 @@ hook.Add('debug', 'repl-debug', function(Message)
     print('DEBUG: ' .. Message)
 end)
 
+hook.Add('plugin.HookCallFailed', 'repl-debug', function(Name, Message)
+    print(string.format("Plugin hook call failed! %s: %s", Name, Message))
+end)
+
 hook.Add('irc.Connected', 'repl-connected', function()
     irc:Join('#hackerspace-pl-bottest')
 end)
 
+config:Load('moonspeak.ini')
+local Server = config:Get('irc', 'server')
+local Port = tonumber(config:Get('irc', 'port')) or 6667
+local Nickname = config:Get('irc', 'nickname')
+local Username = config:Get('irc', 'username')
+local Realname = config:Get('irc', 'realname')
+
 reactor:Initialize()
 bot:Initialize(irc, ',')
 plugin.AddRuntimeCommands()
---[[bot:AddCommand('at', 0, function(Username, Channel)
-    local Body, Code, Headers, Status = https.request('https://at.hackerspace.pl/api')
-    if Code ~= 200 then
-        error(string.format("Status code returned: %i", Code))
-    end
-    local Data = json.decode.decode(Body)
-    local Users = {}
-    for K, User in pairs(Data.users) do
-        Users[#Users + 1] = User.login
-    end
-    Channel:Say(table.concat(Users, ','))
-
-end, "Show who's at the Warsaw Hackerspace.")]]--
-
-irc:Connect('irc.freenode.net', 6667, 'moonspeak', 'moonspeak', 'moonspeak')
+plugin.Discover()
+irc:Connect(Server, Port, Nickname, Username, Realname)
 reactor:Run()
