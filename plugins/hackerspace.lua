@@ -48,3 +48,8 @@ plugin.AddHook('bot.UnknownCommand', 'DescribeTerm', function(Username, Channel,
         end
     end
 end)
+
+
+plugin.AddCommand('op', 1, function(Username, Channel, Target)
+    irc:_Send(string.format("MODE %s +o %s", Channel, Target))
+end, "Give operator status to someone on the channel.", 40)
