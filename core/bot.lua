@@ -44,7 +44,10 @@ function bot:OnChannelMessage(Username, Channel, Message)
         end
 
         if not self._commands[Command] then
-            Channel:Say("Unknown command '" .. Command .. "'.")
+            local FellBack =  hook.Call("bot.UnknownCommand", Username, Channel, Command, Arguments)
+            if not FellBack then
+                Channel:Say("Unknown command '" .. Command .. "'.")
+            end
         else
             local CommandData = self._commands[Command]
             if #Arguments ~= CommandData.Arguments and CommandData.Arguments ~= -1 then
