@@ -72,7 +72,6 @@ function API.Register(plugin_id, plugin_name, version, url, author)
     Plugin.Version = Version
     Plugin.URL = url
     Plugin.Author = author
-
 end
 
 function API.CurrentTime(plugin_id)
@@ -81,6 +80,10 @@ end
 
 function API.ConfigGet(plugin_id, Key)
     return config:Get("plugin-" .. plugin_id, Key)
+end
+
+function API.DBOpen(plugin_id, Handle)
+    return db.Open(Handle)
 end
 
 local Quotas = {}

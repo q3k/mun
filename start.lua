@@ -1,5 +1,6 @@
 require('core.hook')
 require('core.config')
+require('core.db')
 require('core.reactor')
 require('core.irc')
 require('core.bot')

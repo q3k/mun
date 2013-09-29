@@ -75,7 +75,7 @@ function reactor:Run()
             -- we actually got something on our sockets
             for Socket, Data in pairs(self._read_sockets) do
                 if r[Socket] ~= nil then
-                    Socket:settimeout(2)
+                    --Socket:settimeout(3)
                     local Line, Error = Socket:receive('*l')
                     if Error then
                         error('Could not receive line: ' .. Error)
