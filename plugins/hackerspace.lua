@@ -53,10 +53,6 @@ plugin.AddCommand('due-me', 0, function(Username, Channel)
     SayDue(Username, Channel)
 end, "Show months due for speaker.")
 
--- hax
-os = {}
-os.time = table.time
-
 Nagged = {}
 plugin.AddHook('irc.Message', 'nag', function(Username, Channel, Message)
     local Target = Username:lower()
@@ -127,3 +123,4 @@ end)
 plugin.AddCommand('op', 1, function(Username, Channel, Target)
     irc:_Send(string.format("MODE %s +o %s", Channel, Target))
 end, "Give operator status to someone on the channel.", 40)
+
