@@ -1,4 +1,7 @@
 plugin.AddCommand('at', 0, function(Username, Channel)
+    if Channel ~= '#hackerspace-pl' then
+        return
+    end
     local Body, Code, Headers, Status = https.request('https://at.hackerspace.pl/api')
     if Code ~= 200 then
         error(string.format("Status code returned: %i", Code))
@@ -46,15 +49,24 @@ local function SayDue(Target, Channel)
 end
 
 plugin.AddCommand('due', 1, function(Username, Channel, Target)
+    if Channel ~= '#hackerspace-pl' then
+        return
+    end
     SayDue(Target, Channel)
 end, "Show months due for user.")
 
 plugin.AddCommand('due-me', 0, function(Username, Channel)
+    if Channel ~= '#hackerspace-pl' then
+        return
+    end
     SayDue(Username, Channel)
 end, "Show months due for speaker.")
 
 Nagged = {}
 plugin.AddHook('irc.Message', 'nag', function(Username, Channel, Message)
+    if Channel ~= '#hackerspace-pl' then
+        return
+    end
     local Target = Username:lower()
     if Target == 'enleth' then return end
     if Nagged[Target] == nil or Nagged[Target] < os.time() then
@@ -74,6 +86,9 @@ plugin.AddHook('irc.Message', 'nag', function(Username, Channel, Message)
 end)
 
 plugin.AddCommand('mana', 0, function(Username, Channel)
+    if Channel ~= '#hackerspace-pl' then
+        return
+    end
     local Body, Code, Headers, Status = https.request('https://kasownik.hackerspace.pl/api/mana.json')
     if Code ~= 200 then
         error(string.format("Status code returned: %i", Code))
