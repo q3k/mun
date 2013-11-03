@@ -216,6 +216,8 @@ function plugin.PrepareEnvironment(plugin_id)
     Env.tostring = tostring
     Env.pcall = pcall
     Env.type = type
+    Env.os = {}
+    Env.os.time = os.time
     Env.loadstring = function(s)
         if s:byte(1) == 27 then
             return nil, "Refusing to load bytecode"
