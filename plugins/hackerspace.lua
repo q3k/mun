@@ -1,13 +1,14 @@
+local SpaceAPI = {}
+SpaceAPI['#hackerspace-pl'] = 'https://hackerspace.pl/spaceapi'
+SpaceAPI['#hackerspace-krk'] = 'https://hskrk-spacemon.herokuapp.com/'
+
 plugin.AddCommand('at', 0, function(Username, Channel)
-    local Body, Code, Headers
-    if Channel.Name == '#hackerspace-pl' then
-        Body, Code, Headers, Status = https.request('https://hackerspace.pl/spaceapi')
-    elseif Channel.Name  == "#hackerspace-krk" then
-        Body, Code, Headers, Status = https.request('https://hskrk-spacemon.herokuapp.com/')
-    else
+    local URL = SpaceAPI[Channel.Name]
+    if not URL then
         Channel:Say("This is not a hackerspace channel!")
         return
     end
+    local Body, Code, Headers = https.request(URL)
 
     if Code ~= 200 then
         error(string.format("Status code returned: %i", Code))
@@ -15,11 +16,8 @@ plugin.AddCommand('at', 0, function(Username, Channel)
 
     local Data = json.decode.decode(Body)
     if Data.sensors and Data.sensors.people_now_present then
-        local Users = {}
         local Sensor = Data.sensors.people_now_present[1]
-        if Sensor.names ~= nil then
-	    Users = Sensor.names
-        end
+        local Users = Sensor.names or {}
         if #Users == 0 then
             Channel:Say("Trochę Łotwa. Nawet zimnioka nie ma.")
         else
