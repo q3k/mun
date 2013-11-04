@@ -1,8 +1,9 @@
 plugin.AddCommand('at', 0, function(Username, Channel)
+    local Body, Code, Headers
     if Channel.Name == '#hackerspace-pl' then
-        local Body, Code, Headers, Status = https.request('https://hackerspace.pl/spaceapi')
+        Body, Code, Headers, Status = https.request('https://hackerspace.pl/spaceapi')
     elseif Channel.Name  == "#hackerspace-krk" then
-        local Body, Code, Headers, Status = https.request('https://hskrk-spacemon.herokuapp.com/')
+        Body, Code, Headers, Status = https.request('https://hskrk-spacemon.herokuapp.com/')
     else
         Channel:Say("This is not a hackerspace channel!")
         return
@@ -85,7 +86,7 @@ plugin.AddHook('irc.Message', 'nag', function(Username, Channel, Message)
         local Body, Code, Headers, Status = https.request('https://kasownik.hackerspace.pl/api/months_due/' .. Target .. '.json')
         if Code == 200 then
             local Data = json.decode.decode(Body)
-            if Data['content'] > 0 then
+            if Data['content'] > 1 then
                 Nagged[Target] = os.time() + 60 * 60 * 24
                 local Months = 'months'
                 if Data['content'] == 0 then
