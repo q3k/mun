@@ -1,21 +1,33 @@
 plugin.AddCommand('at', 0, function(Username, Channel)
-    if Channel.Name ~= '#hackerspace-pl' then
+    if Channel.Name == '#hackerspace-pl' then
+        local Body, Code, Headers, Status = https.request('https://hackerspace.pl/spaceapi')
+    elseif Channel.Name  == "#hackerspace-krk" then
+        local Body, Code, Headers, Status = https.request('https://hskrk-spacemon.herokuapp.com/')
+    else
+        Channel:Say("This is not a hackerspace channel!")
         return
     end
-    local Body, Code, Headers, Status = https.request('https://at.hackerspace.pl/api')
+
     if Code ~= 200 then
         error(string.format("Status code returned: %i", Code))
     end
 
     local Data = json.decode.decode(Body)
-    local Users = {}
-    for K, User in pairs(Data.users) do
-        Users[#Users + 1] = User.login
-    end
-    if #Users == 0 then
-        Channel:Say("Trochę Łotwa. Nawet zimnioka nie ma.")
+    if Data.sensors and Data.sensors.people_now_present then
+        local Users = {}
+        local Sensor = Data.sensors.people_now_present[0]
+        if Sensor.names ~= nil then
+            for K, User in pairs(Sensor.names) do
+                Users[#Users + 1] = User.login
+            end
+        end
+        if #Users == 0 then
+            Channel:Say("Trochę Łotwa. Nawet zimnioka nie ma.")
+        else
+            Channel:Say(table.concat(Users, ', '))
+        end
     else
-        Channel:Say(table.concat(Users, ', '))
+        Channel:Say("API się wzięło i zjebało.")
     end
 end, "Show who's at the Warsaw Hackerspace.")
 
