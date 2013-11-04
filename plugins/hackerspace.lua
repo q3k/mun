@@ -18,9 +18,7 @@ plugin.AddCommand('at', 0, function(Username, Channel)
         local Users = {}
         local Sensor = Data.sensors.people_now_present[1]
         if Sensor.names ~= nil then
-            for K, User in pairs(Sensor.names) do
-                Users[#Users + 1] = User.login
-            end
+	    Users = Sensor.names
         end
         if #Users == 0 then
             Channel:Say("Trochę Łotwa. Nawet zimnioka nie ma.")
