@@ -16,7 +16,7 @@ plugin.AddCommand('at', 0, function(Username, Channel)
     local Data = json.decode.decode(Body)
     if Data.sensors and Data.sensors.people_now_present then
         local Users = {}
-        local Sensor = Data.sensors.people_now_present[0]
+        local Sensor = Data.sensors.people_now_present[1]
         if Sensor.names ~= nil then
             for K, User in pairs(Sensor.names) do
                 Users[#Users + 1] = User.login
