@@ -14,6 +14,7 @@ function reactor:Initialize(quantum)
     self._coroutines = {}
 
     self._timers = {}
+    self._events = {}
 end
 
 function reactor:Quit()
@@ -30,23 +31,53 @@ function reactor:Sleep(time)
     coroutine.yield()
 end
 
-function reactor:WaitForEvent(event)
-    local co = coroutine.running()
-    if co == nil then
+reactor.Event = {}
+function reactor.Event:Wait()
+    if coroutine.running() == nil then
         error("Main thread waiting for event... wtf?")
     end
-    self._co_event[co] = event
-    coroutine.yield()
+    self.Waiting[#self.Waiting + 1] = coroutine.running()
+    local Status, Data = coroutine.yield()
+    if Status == false then
+        -- exception!
+        error(Data)
+    end
+    return unpack(Data)
 end
 
-
-function reactor:Event(event)
-    for Coroutine, Event in pairs(self._co_event) do
-        if Event == event then
-            coroutine.resume(Coroutine)
-        end
+function reactor.Event:Fire(...)
+    local Data = {...}
+    -- make a local copy of the old waiters, and clear the new ones
+    local Waiters = {}
+    for i, Coroutine in pairs(self.Waiting) do
+        Waiters[#Waiters + 1] = Coroutine
+    end
+    self.Waiting = {}
+    for i, Coroutine in pairs(Waiters) do
+        coroutine.resume(Coroutine, true, Data)
     end
 end
+
+function reactor.Event:Destroy()
+    -- destroy all waiters
+    for i, Coroutine in pairs(self.Waiting) do
+        coroutine.resume(Coroutine, false, "Coroutine destroyed.")
+    end
+    self.Reactor._events[self.Identifier] = nil
+end
+
+function reactor:NewEvent()
+    local Table = {}
+    Table.Identifier = #self._events + 1
+    Table.Reactor = self
+    Table.Waiting = {}
+    setmetatable(Table, reactor.Event)
+    reactor.Event.__index = reactor.Event
+
+    self._events[Table.Identifier] = Identifier
+    return Table
+end
+
 
 function reactor:Spawn(f, ...)
     local Args = {...}

@@ -11,11 +11,7 @@ local GetRates = function()
     end
 
     local Rates = {}
-<<<<<<< HEAD
-    for _, Market in pairs(Rates) do
-=======
     for _, Market in pairs(Data) do
->>>>>>> c6688a87ae38c2a483731ec9f4da072f2132c725
         local Rate = {}
         Rate.high = Market.high
         Rate.low = Market.low
@@ -27,11 +23,7 @@ local GetRates = function()
 end
 
 local FormatData = function(Rate, Key)
-<<<<<<< HEAD
-    local Value = Rate[key]
-=======
     local Value = Rate[Key]
->>>>>>> c6688a87ae38c2a483731ec9f4da072f2132c725
     local Currency = Rate.currency
 
     return string.format("%.2f %s", Value, Currency)

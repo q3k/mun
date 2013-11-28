@@ -43,17 +43,11 @@ function API.Sleep(plugin_id, Delay)
     plugin.ResumeQuota()
 end
 
-
-function API.WaitForEvent(plugin_id, Event)
+function API.NewEvent(plugin_id, Event)
     plugin.PauseQuota()
-    reactor:WaitForEvent(Event)
+    local Event = reactor:NewEvent(Event)
     plugin.ResumeQuota()
-end
-
-function API.Event(plugin_id, Event)
-    plugin.PauseQuota()
-    reactor:Event(Event)
-    plugin.ResumeQuota()
+    return Event
 end
 
 
