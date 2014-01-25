@@ -20,7 +20,7 @@ end)
 
 hook.Add('irc.Connected', 'repl-connected', function()
     print("Joining...")
-    irc:Join('#hackerspace-pl-bottest')
+    irc:Join('##hackerspace-pl-bottest')
 end)
 
 config:Load('moonspeak.ini')
