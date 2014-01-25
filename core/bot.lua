@@ -80,7 +80,7 @@ function bot:OnChannelMessage(Username, Channel, Message)
                 if UserAccess >= RequiredAccess then
                     CommandData.Callback(Username, Channel, unpack(Arguments))
                 else
-                    Channel:Say(string.format("Unsufficient access level (%i required).", RequiredAccess))
+                    Channel:Say(string.format("Insufficient access level (%i required).", RequiredAccess))
                 end
             end
         end
